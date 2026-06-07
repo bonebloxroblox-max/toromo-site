@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toromo Games Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        toromo: { dark: '#1a1a1a', light: '#2d2d2d', accent: '#ff0066' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #1a1a1a; color: #ffffff; min-height: 100vh; }
+        .confetti { position: absolute; width: 10px; height: 10px; background-color: #ff0066; opacity: 0; pointer-events: none; animation: fall linear forwards; z-index: 100; }
+        @keyframes fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2d2d2d; border-radius: 4px; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen relative">
+
+    <audio id="bgMusic" loop>
+        <source src="Background.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="absolute top-6 left-6 z-50">
+        <img src="https://i.imgur.com/AtOkCSb.png" alt="Toromo.games Logo" class="h-8 md:h-10 object-contain" onerror="this.onerror=null; this.src='https://i.imgur.com/AtOkCSb.jpeg'">
+    </div>
+
+    <main class="flex-grow flex flex-col items-center justify-center relative px-4">
+        <div class="relative z-10 text-center">
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-black mb-4 tracking-tighter text-white uppercase">
+                MORE<br/>COMING SOON
+            </h1>
+            <p class="text-gray-400 text-sm md:text-base max-w-sm mx-auto mb-8">Toromo is an independent Roblox game studio crafting immersive experiences.</p>
+            <p class="text-gray-400 text-lg md:text-xl font-medium tracking-wide">
+                While you wait for our games, <a id="openGameBtn" href="#" class="text-[#ff0066] underline hover:text-pink-400 transition-colors cursor-pointer">play this one</a>!
+            </p>
+        </div>
+    </main>
+
+    <div id="gameOverlay" class="fixed inset-0 z-50 bg-[#1a1a1a] hidden flex-col">
+        <div class="flex justify-between items-center p-6 border-b border-[#2d2d2d]">
+            <h2 class="text-2xl font-black text-white"><i class="fa-solid fa-ghost text-[#ff0066] mr-2"></i>SNAKE</h2>
+            <button id="closeGameBtn" class="text-gray-400 hover:text-white transition-colors text-2xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div class="flex-grow flex flex-col lg:flex-row gap-6 p-6 items-center justify-center">
+            <div class="bg-[#2d2d2d]/80 p-6 rounded-3xl border border-gray-800 flex flex-col items-center w-full max-w-lg">
+                <div class="w-full flex justify-between items-center mb-4 px-2">
+                    <span class="text-gray-400 font-bold uppercase tracking-wider text-sm">Score</span>
+                    <span id="scoreDisplay" class="text-3xl font-black text-white">0</span>
+                </div>
+                
+                <div class="relative w-full aspect-square bg-[#1a1a1a] rounded-xl overflow-hidden border border-gray-800">
+                    <canvas id="gameCanvas" width="400" height="400" class="w-full h-full block"></canvas>
+                    <div id="startOverlay" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
+                        <button id="startBtn" class="bg-white text-black hover:bg-[#ff0066] hover:text-white px-8 py-3 rounded-full font-bold transition-colors">Start Game</button>
+                    </div>
+                    <div id="gameOverOverlay" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center hidden">
+                        <h3 class="text-4xl font-black text-[#ff0066] mb-2">GAME OVER</h3>
+                        <p class="text-gray-300 mb-6">Final Score: <span id="finalScoreDisplay" class="font-bold text-white text-2xl">0</span></p>
+                        <div id="submitScoreForm" class="w-full max-w-[250px] flex flex-col gap-3">
+                            <input type="text" id="playerName" placeholder="Enter your name" maxlength="15" class="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-4 py-3 text-white text-center focus:outline-none focus:border-[#ff0066]">
+                            <button id="submitScoreBtn" class="w-full bg-[#ff0066] text-white px-4 py-3 rounded-lg font-bold hover:bg-pink-600 transition-colors">Submit</button>
+                        </div>
+                        <p id="congratsMsg" class="hidden text-yellow-400 font-bold mt-4 text-center">Top 5!<br/>Congratulations!</p>
+                        <button id="retryBtn" class="mt-6 text-gray-500 hover:text-white underline text-sm">Play Again</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-[#2d2d2d]/80 p-6 rounded-3xl border border-gray-800 w-full max-w-md lg:w-80 h-[400px]">
+                <h3 class="text-xl font-black text-white mb-6 border-b border-gray-800 pb-4">Global Top 5</h3>
+                <ul id="leaderboardList" class="flex-grow flex flex-col gap-3 custom-scrollbar overflow-y-auto pr-2 text-sm"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-6 left-6 z-40 flex items-center gap-3 bg-[#2d2d2d] p-2 pr-4 rounded-full border border-gray-800 shadow-lg">
+        <button id="muteBtn" class="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center text-white hover:bg-[#ff0066] transition-colors">
+            <i id="muteIcon" class="fa-solid fa-volume-xmark"></i>
+        </button>
+        <span id="audioStatusText" class="text-xs font-bold text-white uppercase tracking-wider">Music Off</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Custom Sound Effects Setup
+        const sfx = {
+            turn: new Audio('sounds/turn.mp3'),
+            eat: new Audio('sounds/eat.mp3'),
+            die: new Audio('sounds/die.mp3'),
+            win: new Audio('sounds/win.mp3'),
+            leaderboard: new Audio('sounds/leaderboard.mp3')
+        };
+
+        const playSound = (name) => {
+            const sound = sfx[name];
+            if (sound) {
+                sound.currentTime = 0; // Reset so sounds can overlap if played quickly
+                sound.play().catch(e => console.log("Sound error (user must interact first or file missing):", e));
+            }
+        };
+        
+        const sounds = {
+            turn: () => playSound('turn'),
+            eat: () => playSound('eat'),
+            die: () => playSound('die'),
+            win: () => playSound('win'), 
+            leaderboard: () => playSound('leaderboard') 
+        };
+
+        function fireConfetti() {
+            for (let i = 0; i < 60; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.animationDuration = (Math.random() * 2 + 1) + 's';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 3000);
+            }
+        }
+
+        const app = initializeApp(typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {});
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'toromo-games-studio';
+        
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Auth error", e);
+            }
+        };
+        initAuth();
+
+        let currentTop5 = [];
+        const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'snakeScores');
+        
+        onAuthStateChanged(auth, (user) => {
+            if (!user) return;
+            onSnapshot(scoresRef, (snapshot) => {
+                let data = [];
+                snapshot.forEach(doc => data.push(doc.data()));
+                data.sort((a, b) => b.score - a.score);
+                currentTop5 = data.slice(0, 5);
+                document.getElementById('leaderboardList').innerHTML = currentTop5.map((e, i) => `
+                    <li class="flex justify-between items-center bg-[#1a1a1a] p-3 rounded-xl border border-gray-800">
+                        <span class="text-white">${i+1}. ${e.name}</span>
+                        <span class="text-[#ff0066] font-black">${e.score}</span>
+                    </li>`).join('');
+            }, (err) => {
+                console.error("Leaderboard error:", err);
+            });
+        });
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let snake = [{x: 200, y: 200}, {x: 180, y: 200}], food = {x: 100, y: 100}, dx = 20, dy = 0, score = 0, isPlaying = false, gameTimer;
+
+        function draw() {
+            if (!isPlaying) return;
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, 400, 400);
+            
+            // Move head and wrap around edges
+            let head = { x: (snake[0].x + dx + 400) % 400, y: (snake[0].y + dy + 400) % 400 };
+            snake.unshift(head);
+            
+            // Check food collision
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                sounds.eat();
+                document.getElementById('scoreDisplay').textContent = score;
+                food = {x: Math.floor(Math.random()*20)*20, y: Math.floor(Math.random()*20)*20};
+            } else { snake.pop(); }
+            
+            ctx.fillStyle = '#ff0066';
+            ctx.fillRect(food.x, food.y, 18, 18);
+            ctx.fillStyle = '#fff';
+            snake.forEach(p => ctx.fillRect(p.x, p.y, 18, 18));
+            
+            // Check self collision
+            for(let i=1; i<snake.length; i++) if(head.x === snake[i].x && head.y === snake[i].y) {
+                isPlaying = false;
+                clearInterval(gameTimer);
+                sounds.die();
+                document.getElementById('gameOverOverlay').classList.remove('hidden');
+                document.getElementById('finalScoreDisplay').textContent = score;
+            }
+        }
+
+        // --- AUDIO MANAGEMENT SYSTEM ---
+        let isMuted = true;
+        let isSnakeOpen = false;
+        
+        const bgMusic = document.getElementById('bgMusic');
+        bgMusic.volume = 0.3;
+        
+        const snakeBgMusic = new Audio('sounds/snake_bg.mp3');
+        snakeBgMusic.loop = true;
+        snakeBgMusic.volume = 0.3;
+
+        document.getElementById('muteBtn').addEventListener('click', () => {
+            isMuted = !isMuted;
+            const muteIcon = document.getElementById('muteIcon');
+            const audioText = document.getElementById('audioStatusText');
+            
+            if(isMuted) { 
+                bgMusic.pause();
+                snakeBgMusic.pause();
+                audioText.textContent = "Music Off"; 
+                muteIcon.classList.remove('fa-volume-high');
+                muteIcon.classList.add('fa-volume-xmark');
+            } else { 
+                if (isSnakeOpen) {
+                    snakeBgMusic.play().catch(e => console.log("Audio play blocked:", e));
+                } else {
+                    bgMusic.play().catch(e => console.log("Audio play blocked:", e));
+                }
+                audioText.textContent = "Music On"; 
+                muteIcon.classList.remove('fa-volume-xmark');
+                muteIcon.classList.add('fa-volume-high');
+            }
+        });
+
+        document.getElementById('openGameBtn').addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            isSnakeOpen = true;
+            
+            if (!isMuted) {
+                bgMusic.pause();
+                snakeBgMusic.play().catch(e => console.log(e));
+            }
+            
+            document.getElementById('gameOverlay').classList.remove('hidden'); 
+        });
+        
+        document.getElementById('closeGameBtn').addEventListener('click', () => {
+            isSnakeOpen = false;
+            
+            snakeBgMusic.pause();
+            snakeBgMusic.currentTime = 0;
+            
+            if (!isMuted) {
+                bgMusic.play().catch(e => console.log(e));
+            }
+            
+            document.getElementById('gameOverlay').classList.add('hidden');
+            isPlaying = false;
+            clearInterval(gameTimer);
+        });
+        
+        document.getElementById('startBtn').addEventListener('click', () => { 
+            document.getElementById('startOverlay').classList.add('hidden'); 
+            initGame(); 
+        });
+
+        document.getElementById('retryBtn').addEventListener('click', () => { 
+            document.getElementById('gameOverOverlay').classList.add('hidden'); 
+            initGame(); 
+        });
+
+        function initGame() {
+            snake = [{x: 200, y: 200}, {x: 180, y: 200}];
+            food = {x: Math.floor(Math.random()*20)*20, y: Math.floor(Math.random()*20)*20};
+            dx = 20; 
+            dy = 0; 
+            score = 0; 
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('congratsMsg').classList.add('hidden');
+            document.getElementById('submitScoreForm').classList.remove('hidden');
+            isPlaying = true; 
+            clearInterval(gameTimer);
+            gameTimer = setInterval(draw, 100);
+        }
+        
+        document.getElementById('submitScoreBtn').addEventListener('click', async () => {
+            const name = document.getElementById('playerName').value || 'Anon';
+            document.getElementById('submitScoreBtn').disabled = true;
+            document.getElementById('submitScoreBtn').textContent = 'Submitting...';
+            
+            try {
+                await addDoc(scoresRef, { name, score, timestamp: Date.now() });
+                
+                // If it's a top 5 score, trigger the win & leaderboard sounds and confetti
+                if(currentTop5.length < 5 || score >= (currentTop5[currentTop5.length - 1]?.score || 0)) { 
+                    fireConfetti(); 
+                    sounds.win(); 
+                    setTimeout(() => sounds.leaderboard(), 500); // Play leaderboard sound right after win fanfare
+                    document.getElementById('congratsMsg').classList.remove('hidden'); 
+                }
+                
+                document.getElementById('submitScoreForm').classList.add('hidden');
+            } catch(e) { 
+                console.error("Score submit failed", e); 
+            } finally {
+                document.getElementById('submitScoreBtn').disabled = false;
+                document.getElementById('submitScoreBtn').textContent = 'Submit';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const keys = {
+                ArrowUp: [0,-20], w: [0,-20], W: [0,-20],
+                ArrowDown: [0,20], s: [0,20], S: [0,20],
+                ArrowLeft: [-20,0], a: [-20,0], A: [-20,0],
+                ArrowRight: [20,0], d: [20,0], D: [20,0]
+            };
+            
+            if(keys[e.key]) { 
+                const [newDx, newDy] = keys[e.key];
+                // Check to prevent reversing instantly into itself
+                if ((dx === 0 && newDy === 0) || (dy === 0 && newDx === 0)) {
+                    dx = newDx; 
+                    dy = newDy; 
+                    if(isPlaying) sounds.turn(); 
+                }
+                if(isPlaying) e.preventDefault(); // Stop scrolling on arrow keys while playing
+            }
+        });
+
+        // Initialize canvas visually before starting
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, 400, 400);
+    </script>
+</body>
+</html>
