@@ -30,7 +30,7 @@
 <body class="flex flex-col min-h-screen relative">
 
     <audio id="bgMusic" loop>
-        <source src="Background.mp3" type="audio/mpeg">
+        <source src="background.mp3" type="audio/mpeg">
     </audio>
 
     <div class="absolute top-6 left-6 z-50">
@@ -100,16 +100,29 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Custom Sound Effects Setup
+        // =========================================================================
+        // 🔥 YOUR FIREBASE CONFIG IS LIVE HERE 🔥
+        // =========================================================================
+        const myFirebaseConfig = {
+            apiKey: "AIzaSyB9CxfDQWaVavggHvKB4adZ5rlG3C18jKo",
+            authDomain: "toromo-games.firebaseapp.com",
+            projectId: "toromo-games",
+            storageBucket: "toromo-games.firebasestorage.app",
+            messagingSenderId: "1007037213862",
+            appId: "1:1007037213862:web:7aae6c0573ef6e29bf1867",
+            measurementId: "G-C9PDN5D74C"
+        };
+        // =========================================================================
+
         const sfx = {
-            turn: new Audio('sounds/turn.mp3'),
-            eat: new Audio('sounds/eat.mp3'),
-            die: new Audio('sounds/die.mp3'),
-            win: new Audio('sounds/win.mp3'),
-            leaderboard: new Audio('sounds/leaderboard.mp3')
+            turn: new Audio('turn.mp3'),
+            eat: new Audio('eat.mp3'),
+            die: new Audio('die.mp3'),
+            win: new Audio('win.mp3'),
+            leaderboard: new Audio('leaderboard.mp3')
         };
 
         const playSound = (name) => {
@@ -139,52 +152,47 @@
             }
         }
 
-        // Firebase variables
-        let app = null, auth = null, db = null, scoresRef = null;
+        // Firebase setup - Stripped down and simplified for your own database!
+        let app, auth, db, scoresRef;
         let currentTop5 = [];
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         const initAuthAndLeaderboard = async () => {
             try {
-                // Safely check if we have firebase config (missing on standard github pages)
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    app = initializeApp(JSON.parse(__firebase_config));
-                    auth = getAuth(app);
-                    db = getFirestore(app);
+                app = initializeApp(myFirebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                await signInAnonymously(auth);
 
-                    onAuthStateChanged(auth, (user) => {
-                        if (!user) return;
+                onAuthStateChanged(auth, (user) => {
+                    if (!user) return;
+                    
+                    // Simple, clean path straight to a 'snakeScores' collection
+                    scoresRef = collection(db, 'snakeScores');
+                    
+                    onSnapshot(scoresRef, (snapshot) => {
+                        let data = [];
+                        snapshot.forEach(doc => data.push(doc.data()));
+                        data.sort((a, b) => b.score - a.score); 
+                        currentTop5 = data.slice(0, 5);
                         
-                        scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'snakeScores');
-                        
-                        onSnapshot(scoresRef, (snapshot) => {
-                            let data = [];
-                            snapshot.forEach(doc => data.push(doc.data()));
-                            data.sort((a, b) => b.score - a.score);
-                            currentTop5 = data.slice(0, 5);
+                        if (currentTop5.length === 0) {
+                            document.getElementById('leaderboardList').innerHTML = '<li class="text-gray-500 text-sm text-center mt-10">No scores yet. Be the first!</li>';
+                        } else {
                             document.getElementById('leaderboardList').innerHTML = currentTop5.map((e, i) => `
                                 <li class="flex justify-between items-center bg-[#1a1a1a] p-3 rounded-xl border border-gray-800">
                                     <span class="text-white">${i+1}. ${e.name}</span>
                                     <span class="text-[#ff0066] font-black">${e.score}</span>
                                 </li>`).join('');
-                        }, (err) => {
-                            console.error("Leaderboard error:", err);
-                        });
+                        }
+                    }, (err) => {
+                        console.error("Leaderboard permission/read error:", err);
+                        document.getElementById('leaderboardList').innerHTML = `<li class="text-red-400 text-xs text-center mt-10 px-4">Firebase Error: ${err.message}</li>`;
                     });
-                } else {
-                    // Fail gracefully if on Github Pages without Firebase config
-                    console.log("Firebase config not found. Running in local mode.");
-                    document.getElementById('leaderboardList').innerHTML = '<li class="text-gray-500 text-sm text-center mt-10">Leaderboard offline (Local Mode)</li>';
-                }
+                });
             } catch (e) {
-                console.error("Auth/DB init skipped:", e);
-                document.getElementById('leaderboardList').innerHTML = '<li class="text-gray-500 text-sm text-center mt-10">Leaderboard offline (Local Mode)</li>';
+                console.error("Auth/DB init completely failed:", e);
+                document.getElementById('leaderboardList').innerHTML = `<li class="text-red-400 text-xs text-center mt-10 px-4">Connection Failed: ${e.message}</li>`;
             }
         };
         
@@ -199,11 +207,9 @@
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, 400, 400);
             
-            // Move head and wrap around edges
             let head = { x: (snake[0].x + dx + 400) % 400, y: (snake[0].y + dy + 400) % 400 };
             snake.unshift(head);
             
-            // Check food collision
             if (head.x === food.x && head.y === food.y) {
                 score += 10;
                 sounds.eat();
@@ -216,7 +222,6 @@
             ctx.fillStyle = '#fff';
             snake.forEach(p => ctx.fillRect(p.x, p.y, 18, 18));
             
-            // Check self collision
             for(let i=1; i<snake.length; i++) if(head.x === snake[i].x && head.y === snake[i].y) {
                 isPlaying = false;
                 clearInterval(gameTimer);
@@ -233,7 +238,7 @@
         const bgMusic = document.getElementById('bgMusic');
         bgMusic.volume = 0.3;
         
-        const snakeBgMusic = new Audio('sounds/snake_bg.mp3');
+        const snakeBgMusic = new Audio('snake_bg.mp3');
         snakeBgMusic.loop = true;
         snakeBgMusic.volume = 0.3;
 
@@ -317,7 +322,6 @@
             document.getElementById('submitScoreBtn').textContent = 'Submitting...';
             
             try {
-                // Only try to save to database if it was successfully initialized
                 if (auth && db && scoresRef && auth.currentUser) {
                     await addDoc(scoresRef, { 
                         name, 
@@ -325,11 +329,8 @@
                         timestamp: Date.now(),
                         userId: auth.currentUser.uid 
                     });
-                } else {
-                    console.log("Score not saved to DB (Running in local mode)");
                 }
                 
-                // Still trigger the win & leaderboard sounds and confetti locally!
                 if(currentTop5.length < 5 || score >= (currentTop5[currentTop5.length - 1]?.score || 0)) { 
                     fireConfetti(); 
                     sounds.win(); 
@@ -340,6 +341,7 @@
                 document.getElementById('submitScoreForm').classList.add('hidden');
             } catch(e) { 
                 console.error("Score submit failed", e); 
+                alert("Failed to save score! Check console.");
             } finally {
                 document.getElementById('submitScoreBtn').disabled = false;
                 document.getElementById('submitScoreBtn').textContent = 'Submit';
@@ -356,17 +358,15 @@
             
             if(keys[e.key]) { 
                 const [newDx, newDy] = keys[e.key];
-                // Check to prevent reversing instantly into itself
                 if ((dx === 0 && newDy === 0) || (dy === 0 && newDx === 0)) {
                     dx = newDx; 
                     dy = newDy; 
                     if(isPlaying) sounds.turn(); 
                 }
-                if(isPlaying) e.preventDefault(); // Stop scrolling on arrow keys while playing
+                if(isPlaying) e.preventDefault(); 
             }
         });
 
-        // Initialize canvas visually before starting
         ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, 400, 400);
     </script>
