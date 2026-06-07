@@ -138,40 +138,45 @@
         const app = initializeApp(typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {});
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'toromo-games-studio';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
-        const initAuth = async () => {
+        let currentTop5 = [];
+        let scoresRef;
+
+        const initAuthAndLeaderboard = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
+
+                // Only attach listener after we are definitively signed in
+                onAuthStateChanged(auth, (user) => {
+                    if (!user) return;
+                    
+                    scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'snakeScores');
+                    
+                    onSnapshot(scoresRef, (snapshot) => {
+                        let data = [];
+                        snapshot.forEach(doc => data.push(doc.data()));
+                        data.sort((a, b) => b.score - a.score);
+                        currentTop5 = data.slice(0, 5);
+                        document.getElementById('leaderboardList').innerHTML = currentTop5.map((e, i) => `
+                            <li class="flex justify-between items-center bg-[#1a1a1a] p-3 rounded-xl border border-gray-800">
+                                <span class="text-white">${i+1}. ${e.name}</span>
+                                <span class="text-[#ff0066] font-black">${e.score}</span>
+                            </li>`).join('');
+                    }, (err) => {
+                        console.error("Leaderboard error:", err);
+                    });
+                });
             } catch (e) {
                 console.error("Auth error", e);
             }
         };
-        initAuth();
-
-        let currentTop5 = [];
-        const scoresRef = collection(db, 'artifacts', appId, 'public', 'data', 'snakeScores');
         
-        onAuthStateChanged(auth, (user) => {
-            if (!user) return;
-            onSnapshot(scoresRef, (snapshot) => {
-                let data = [];
-                snapshot.forEach(doc => data.push(doc.data()));
-                data.sort((a, b) => b.score - a.score);
-                currentTop5 = data.slice(0, 5);
-                document.getElementById('leaderboardList').innerHTML = currentTop5.map((e, i) => `
-                    <li class="flex justify-between items-center bg-[#1a1a1a] p-3 rounded-xl border border-gray-800">
-                        <span class="text-white">${i+1}. ${e.name}</span>
-                        <span class="text-[#ff0066] font-black">${e.score}</span>
-                    </li>`).join('');
-            }, (err) => {
-                console.error("Leaderboard error:", err);
-            });
-        });
+        initAuthAndLeaderboard();
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -295,12 +300,20 @@
         }
         
         document.getElementById('submitScoreBtn').addEventListener('click', async () => {
+            if (!auth.currentUser) return; // Prevent submission if not authenticated
+            
             const name = document.getElementById('playerName').value || 'Anon';
             document.getElementById('submitScoreBtn').disabled = true;
             document.getElementById('submitScoreBtn').textContent = 'Submitting...';
             
             try {
-                await addDoc(scoresRef, { name, score, timestamp: Date.now() });
+                // Included userId to satisfy potential strict write security rules
+                await addDoc(scoresRef, { 
+                    name, 
+                    score, 
+                    timestamp: Date.now(),
+                    userId: auth.currentUser.uid 
+                });
                 
                 // If it's a top 5 score, trigger the win & leaderboard sounds and confetti
                 if(currentTop5.length < 5 || score >= (currentTop5[currentTop5.length - 1]?.score || 0)) { 
